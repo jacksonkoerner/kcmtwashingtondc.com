@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KCMT Washington DC</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1a1a2e; line-height: 1.6; }
+    header { background: #0f0f23; color: white; padding: 80px 20px; text-align: center; }
+    header h1 { font-size: 3rem; margin-bottom: 16px; letter-spacing: 2px; }
+    header p { font-size: 1.25rem; opacity: 0.8; max-width: 600px; margin: 0 auto; }
+    main { max-width: 900px; margin: 60px auto; padding: 0 20px; }
+    section { margin-bottom: 48px; }
+    section h2 { font-size: 1.75rem; margin-bottom: 16px; border-bottom: 2px solid #e0e0e0; padding-bottom: 8px; }
+    .contact { background: #f5f5f5; padding: 40px 20px; text-align: center; border-radius: 8px; }
+    footer { text-align: center; padding: 24px; color: #888; font-size: 0.875rem; }
+    #status { background: #e8f5e9; color: #2e7d32; padding: 12px 20px; border-radius: 6px; margin-bottom: 20px; text-align: center; display: none; }
+    #status.error { background: #ffebee; color: #c62828; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>KCMT Washington DC</h1>
+    <p>Your trusted partner in Washington, D.C.</p>
+  </header>
+
+  <main>
+    <div id="status">● Connected</div>
+
+    <section>
+      <h2>About</h2>
+      <p>KCMT provides comprehensive services in the Washington D.C. metropolitan area. We are committed to excellence and client satisfaction.</p>
+    </section>
+
+    <section>
+      <h2>Services</h2>
+      <p>Details coming soon.</p>
+    </section>
+
+    <section>
+      <h2>Contact</h2>
+      <div class="contact">
+        <p><strong>Email:</strong> info@kcmtwashingtondc.com</p>
+        <p><strong>Location:</strong> Washington, D.C.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>&copy; 2026 KCMT Washington DC. All rights reserved.</footer>
+
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+    const SUPABASE_URL = 'https://ovyblollpjpoxlwqwwml.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92eWJsb2xscGpwb3hsd3F3d21sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE1NjE0NjYsImV4cCI6MjA1NzEzNzQ2Nn0.XM3pawm6Qn4mGQPPqMfPZu6g0TqIaLzAbLK_lGpMPwQ';
+    const statusEl = document.getElementById('status');
+
+    try {
+      const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      const { data, error } = await supabase.from('_health_check').select('*').limit(1).maybeSingle();
+
+      if (error) {
+        // Generic health check - try a simple query
+        const { error: pingErr } = await supabase.auth.getSession();
+        if (pingErr && pingErr.message?.includes('Failed to fetch')) {
+          throw new Error('Connection failed');
+        }
+        // Auth ping worked, connection is fine even if table doesn't exist
+        statusEl.textContent = '● Connected';
+        statusEl.style.display = 'block';
+      } else {
+        statusEl.textContent = '● Connected';
+        statusEl.style.display = 'block';
+      }
+    } catch (err) {
+      statusEl.textContent = '● Connection Error: ' + err.message;
+      statusEl.className = 'error';
+      statusEl.style.display = 'block';
+    }
+  </script>
+</body>
+</html>
