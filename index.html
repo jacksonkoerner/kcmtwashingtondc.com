@@ -15,8 +15,9 @@
     section h2 { font-size: 1.75rem; margin-bottom: 16px; border-bottom: 2px solid #e0e0e0; padding-bottom: 8px; }
     .contact { background: #f5f5f5; padding: 40px 20px; text-align: center; border-radius: 8px; }
     footer { text-align: center; padding: 24px; color: #888; font-size: 0.875rem; }
-    #status { background: #e8f5e9; color: #2e7d32; padding: 12px 20px; border-radius: 6px; margin-bottom: 20px; text-align: center; display: none; }
-    #status.error { background: #ffebee; color: #c62828; }
+    #db-status { background: #e8f5e9; color: #2e7d32; padding: 12px 20px; border-radius: 6px; margin-bottom: 20px; text-align: center; display: none; }
+    #db-status.error { background: #ffebee; color: #c62828; }
+    #data-section { display: none; }
   </style>
 </head>
 <body>
@@ -26,7 +27,12 @@
   </header>
 
   <main>
-    <div id="status">● Connected</div>
+    <div id="db-status">● IndexedDB Ready</div>
+
+    <section id="data-section">
+      <h2>Data</h2>
+      <div id="data-list"></div>
+    </section>
 
     <section>
       <h2>About</h2>
@@ -49,25 +55,104 @@
 
   <footer>&copy; 2026 KCMT Washington DC. All rights reserved.</footer>
 
-  <script type="module">
-    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-    const SUPABASE_URL = 'https://iskrijjednlejvgyhkht.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlza3JpamplZG5sZWp2Z3loa2h0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3OTM5ODksImV4cCI6MjA5MzM2OTk4OX0.nuH2IHYFcUDl4x66omrdnVKP4TV4SVKxQknb9L9ttQU';
-    const statusEl = document.getElementById('status');
+  <script>
+    (function() {
+      const DB_NAME = 'kcmt_washington_dc';
+      const DB_VERSION = 1;
+      const statusEl = document.getElementById('db-status');
 
-    try {
-      const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      const { error } = await supabase.auth.getSession();
-      if (error && error.message?.includes('Failed to fetch')) {
-        throw new Error('Connection failed');
+      function openDB() {
+        return new Promise((resolve, reject) => {
+          const request = indexedDB.open(DB_NAME, DB_VERSION);
+          request.onupgradeneeded = function(e) {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains('pages')) {
+              db.createObjectStore('pages', { keyPath: 'id', autoIncrement: true });
+            }
+            if (!db.objectStoreNames.contains('settings')) {
+              db.createObjectStore('settings', { keyPath: 'key' });
+            }
+            if (!db.objectStoreNames.contains('contacts')) {
+              db.createObjectStore('contacts', { keyPath: 'id', autoIncrement: true });
+            }
+          };
+          request.onsuccess = function(e) { resolve(e.target.result); };
+          request.onerror = function(e) { reject(e.target.error); };
+        });
       }
-      statusEl.textContent = '● Connected';
-      statusEl.style.display = 'block';
-    } catch (err) {
-      statusEl.textContent = '● Connection Error: ' + err.message;
-      statusEl.className = 'error';
-      statusEl.style.display = 'block';
-    }
+
+      const KCMT = {
+        db: null,
+        async init() {
+          try {
+            this.db = await openDB();
+            statusEl.textContent = '● IndexedDB Ready';
+            statusEl.style.display = 'block';
+            document.getElementById('data-section').style.display = 'block';
+            return true;
+          } catch (err) {
+            statusEl.textContent = '● IndexedDB Error: ' + err.message;
+            statusEl.className = 'error';
+            statusEl.style.display = 'block';
+            return false;
+          }
+        },
+        transaction(stores, mode) {
+          return this.db.transaction(stores, mode || 'readonly');
+        },
+        async get(store, key) {
+          const tx = this.transaction([store]);
+          return new Promise((resolve, reject) => {
+            const req = tx.objectStore(store).get(key);
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => reject(req.error);
+          });
+        },
+        async getAll(store) {
+          const tx = this.transaction([store]);
+          return new Promise((resolve, reject) => {
+            const req = tx.objectStore(store).getAll();
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => reject(req.error);
+          });
+        },
+        async put(store, value) {
+          const tx = this.transaction([store], 'readwrite');
+          return new Promise((resolve, reject) => {
+            const req = tx.objectStore(store).put(value);
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => reject(req.error);
+          });
+        },
+        async add(store, value) {
+          const tx = this.transaction([store], 'readwrite');
+          return new Promise((resolve, reject) => {
+            const req = tx.objectStore(store).add(value);
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => reject(req.error);
+          });
+        },
+        async delete(store, key) {
+          const tx = this.transaction([store], 'readwrite');
+          return new Promise((resolve, reject) => {
+            const req = tx.objectStore(store).delete(key);
+            req.onsuccess = () => resolve();
+            req.onerror = () => reject(req.error);
+          });
+        },
+        async clear(store) {
+          const tx = this.transaction([store], 'readwrite');
+          return new Promise((resolve, reject) => {
+            const req = tx.objectStore(store).clear();
+            req.onsuccess = () => resolve();
+            req.onerror = () => reject(req.error);
+          });
+        }
+      };
+
+      window.KCMT = KCMT;
+      KCMT.init();
+    })();
   </script>
 </body>
 </html>
